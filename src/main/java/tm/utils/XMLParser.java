@@ -45,9 +45,16 @@ public class XMLParser {
 			throws SAXException, SAXParseException, ParserConfigurationException, IOException {
 		Document document = null;
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-		factory.setValidating(true);
+		factory.setValidating(false);
+		try {
+			factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+		} catch (Exception ignored) {}
 		try {
 			DocumentBuilder builder = factory.newDocumentBuilder();
+			// suppress any external entity (e.g. DTD) lookup — the resources XML
+			// references a relative DTD path that doesn't resolve on every OS.
+			builder.setEntityResolver((publicId, systemId) ->
+					new InputSource(new java.io.StringReader("")));
 			InputStream inputStream = new FileInputStream(file);
 			InputSource is = new InputSource(inputStream);
 			is.setEncoding("UTF-8");

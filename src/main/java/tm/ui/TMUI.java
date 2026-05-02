@@ -4447,6 +4447,11 @@ public class TMUI extends JFrame {
 						"Tile Molester",
 						JOptionPane.ERROR_MESSAGE);
 			}
+			// if loading failed (no resources attached), fall back to defaults
+			// so saving on close still produces a usable XML next time.
+			if (img.getResources() == null) {
+				new TMFileResources(img, this);
+			}
 		} else {
 			// create default resources
 			new TMFileResources(img, this);
