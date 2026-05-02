@@ -1901,6 +1901,7 @@ public class TMUI extends JFrame {
 
 			// check if it's the last view
 			if (img.getViews().length == 1) {
+				captureViewSettings(view);
 				saveResources(img); // TODO
 				// check if saving required/desired
 				if (img.isModified()) {
@@ -1955,6 +1956,23 @@ public class TMUI extends JFrame {
 	 * Saves the resources for the given fileimage to a file in XML format.
 	 *
 	 **/
+
+	/**
+	 *
+	 * Captures the current view's codec/mode/zoom/canvas size into the
+	 * fileimage's resources, so they get persisted by saveResources().
+	 * The external-palette block is updated separately, when the user
+	 * runs Palette > Import From > Another File.
+	 *
+	 **/
+
+	public void captureViewSettings(TMView view) {
+		if (view == null) return;
+		FileImage img = view.getFileImage();
+		if (img == null || img.getResources() == null) return;
+		ViewSettings vs = img.getResources().getViewSettings();
+		if (vs != null) vs.captureFrom(view);
+	}
 
 	public void saveResources(FileImage img) {
 		// TODO: should only save if # bookmarks | # of palettes > 0?
@@ -2025,6 +2043,7 @@ public class TMUI extends JFrame {
 			TMView view = (TMView) frames[i];
 			FileImage img = view.getFileImage();
 
+			captureViewSettings(view);
 			saveResources(img); // TODO
 
 			addToRecentFiles(new File(img.getFile().getAbsolutePath()));
@@ -3259,6 +3278,15 @@ public class TMUI extends JFrame {
 
 				// set the new palette
 				view.setPalette(palette);
+
+				// record the import so it can be reapplied when the file is reopened
+				FileImage img = view.getFileImage();
+				if (img != null && img.getResources() != null
+						&& img.getResources().getViewSettings() != null) {
+					img.getResources().getViewSettings().setExternalPalette(
+							file.getAbsolutePath(), offset, size, pf.getCodecID(), endianness);
+				}
+
 				refreshPalettePane();
 				refreshPalettesMenu();
 			}
@@ -4466,7 +4494,14 @@ public class TMUI extends JFrame {
 		TMPalette pal = new TMPalette("PAL000", TMPalette.defaultPalette, getColorCodecByID("CF01"),
 				ColorCodec.LITTLE_ENDIAN, true);
 
-		addViewToDesktop(createView(img, tc, pal, mode));
+		TMView view = createView(img, tc, pal, mode);
+		addViewToDesktop(view);
+
+		// Apply persisted per-file view settings (overrides file-filter defaults).
+		if (img.getResources() != null && img.getResources().getViewSettings() != null) {
+			img.getResources().getViewSettings().applyTo(view, this);
+			viewSelected(view);
+		}
 
 		Vector recentFiles = TileMolester.settings.getRecentFiles();
 		// Remove file from recentFiles, if it's there

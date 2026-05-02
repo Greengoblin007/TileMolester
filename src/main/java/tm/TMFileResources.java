@@ -43,6 +43,7 @@ public class TMFileResources {
 
 	private FolderNode bookmarkRoot;
 	private FolderNode paletteRoot;
+	private ViewSettings viewSettings = new ViewSettings();
 
 	private FileImage fileImage;
 	private TMUI ui;
@@ -95,6 +96,8 @@ public class TMFileResources {
 		Element root = doc.getDocumentElement();
 		bookmarkRoot = parseBookmarks(root);
 		paletteRoot = parsePalettes(root);
+		ViewSettings parsed = ViewSettings.parse(root);
+		if (parsed != null) viewSettings = parsed;
 
 		fileImage.setResources(this);
 	}
@@ -274,6 +277,17 @@ public class TMFileResources {
 
 	/**
 	 *
+	 * Gets the per-file view settings (codec, mode, zoom, canvas size,
+	 * last externally-imported palette).
+	 *
+	 **/
+
+	public ViewSettings getViewSettings() {
+		return viewSettings;
+	}
+
+	/**
+	 *
 	 * Returns XML representation of resources.
 	 *
 	 **/
@@ -285,6 +299,7 @@ public class TMFileResources {
 
 		sb.append(bookmarksToXML());
 		sb.append(palettesToXML());
+		sb.append(viewSettings.toXML());
 
 		sb.append("</tmres>\n");
 		return sb.toString();
