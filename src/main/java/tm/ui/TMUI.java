@@ -3811,6 +3811,7 @@ public class TMUI extends JFrame {
 		desktop.add(view);
 		try {
 			view.setSelected(true);
+			view.setMaximum(true);
 		} catch (java.beans.PropertyVetoException x) {
 			x.printStackTrace();
 		}
@@ -3933,7 +3934,7 @@ public class TMUI extends JFrame {
 		TMFileFilter supportedFilter = new TMFileFilter(extlist, xlate("All_Supported_Formats"));
 		fileOpenChooser.addChoosableFileFilter(supportedFilter);
 		fileOpenChooser.addChoosableFileFilter(allFilter);
-		fileOpenChooser.setFileFilter(supportedFilter);
+		fileOpenChooser.setFileFilter(allFilter);
 	}
 
 	/**
