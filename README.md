@@ -1,5 +1,13 @@
 # Tile Molester
 
+> **Note — this is a temporary fork.**
+> This repository exists only to publish a build of the unmerged pull requests
+> [toruzz/TileMolester#34](https://github.com/toruzz/TileMolester/pull/34) (XML parser & TMView fixes)
+> and [toruzz/TileMolester#35](https://github.com/toruzz/TileMolester/pull/35) (per-file view settings).
+> Once those PRs are merged upstream this fork will be archived.
+> For active development please use the original repository:
+> [toruzz/TileMolester](https://github.com/toruzz/TileMolester).
+
 Tile Molester is a multi-format, user-extensible graphics data editor that lets you create, view and edit graphics in arbitrary binary files, with a particular focus on binaries for game consoles.
 
 It was originally developed SnowBro and later improved by Central MiB and Lab313. Mewster merged those changes and updates into the original source code and added some other improvements as well, which I used as a base to add UI improvements.
