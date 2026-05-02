@@ -247,6 +247,7 @@ public class TMUI extends JFrame {
 	private JCheckBoxMenuItem blockGridMenuItem = new JCheckBoxMenuItem("Block Grid");
 	private JCheckBoxMenuItem tileGridMenuItem = new JCheckBoxMenuItem("Tile Grid");
 	private JCheckBoxMenuItem pixelGridMenuItem = new JCheckBoxMenuItem("Pixel Grid");
+	private JCheckBoxMenuItem pixelViewMenuItem = new JCheckBoxMenuItem("Pixel View");
 	// Navigate menu
 	private JMenu navigateMenu = new JMenu("Navigate");
 	private JMenuItem goToMenuItem = new JMenuItem("Go To...");
@@ -404,6 +405,7 @@ public class TMUI extends JFrame {
 		blockGridMenuItem.setText(xlate("Block_Grid"));
 		tileGridMenuItem.setText(xlate("Tile_Grid"));
 		pixelGridMenuItem.setText(xlate("Pixel_Grid"));
+		pixelViewMenuItem.setText(xlate("Pixel_View"));
 		// Navigate menu
 		navigateMenu.setText(xlate("Navigate"));
 		goToMenuItem.setText(xlate("Go_To"));
@@ -584,17 +586,9 @@ public class TMUI extends JFrame {
 			public void windowClosing(WindowEvent e) {
 				doExitCommand();
 			}
-
-			public void windowActivated(WindowEvent e) {
-				setExtendedState(JFrame.NORMAL); // Hacky way to make it not run in full screen by default
-				// HACK to fix the GUI after running FCEU in fullscreen mode
-				// int state = getExtendedState();
-				// setExtendedState(JFrame.ICONIFIED);
-				// setExtendedState(state);
-			}
 		});
 
-		// Center the frame
+		// Set sane bounds (used when the user un-maximizes); then start maximized.
 		int inset = 128;
 		int maxWidth = 1600;
 		int maxHeight = 1080;
@@ -614,6 +608,7 @@ public class TMUI extends JFrame {
 
 		com.formdev.flatlaf.FlatLaf.updateUI();
 		// Show and maximize.
+		setExtendedState(getExtendedState() | JFrame.MAXIMIZED_BOTH);
 		setVisible(true);
 	}
 
@@ -1475,6 +1470,17 @@ public class TMUI extends JFrame {
 					}
 				});
 		viewMenu.add(pixelGridMenuItem);
+		//
+		viewMenu.addSeparator();
+		// Pixel View
+		pixelViewMenuItem.setMnemonic(KeyEvent.VK_X);
+		pixelViewMenuItem.addActionListener(
+				new ActionListener() {
+					public void actionPerformed(ActionEvent e) {
+						doPixelViewCommand();
+					}
+				});
+		viewMenu.add(pixelViewMenuItem);
 		//
 		viewMenu.addSeparator();
 		// Statusbar
@@ -2617,6 +2623,47 @@ public class TMUI extends JFrame {
 
 	/**
 	 *
+	 * Handles menu command "Pixel View".
+	 * Toggles between rendering the file as 8x8 tiles and as a continuous bitmap.
+	 *
+	 **/
+
+	public void doPixelViewCommand() {
+		TMView view = getSelectedView();
+		if (view != null) {
+			view.setPixelView(!view.isPixelView());
+			pixelViewMenuItem.setSelected(view.isPixelView());
+			blockGridMenuItem.setSelected(view.isBlockGridVisible());
+			tileGridMenuItem.setSelected(view.isTileGridVisible());
+			refreshModeSelection(view);
+			boolean tileMode = !view.isPixelView();
+			_1DimensionalMenuItem.setEnabled(tileMode);
+			_2DimensionalMenuItem.setEnabled(tileMode);
+			tileGridMenuItem.setEnabled(tileMode);
+			blockGridMenuItem.setEnabled(tileMode);
+			refreshRowButtonTooltips(view);
+		}
+	}
+
+	/**
+	 *
+	 * Updates the Row Back/Forward toolbar button tooltips to reflect whether
+	 * Pixel View is active.
+	 *
+	 **/
+
+	private void refreshRowButtonTooltips(TMView view) {
+		if (view != null && view.isPixelView()) {
+			minusRowButton.setToolTipText(xlate("Pixel_Back"));
+			plusRowButton.setToolTipText(xlate("Pixel_Forward"));
+		} else {
+			minusRowButton.setToolTipText(xlate("Row_Back"));
+			plusRowButton.setToolTipText(xlate("Row_Forward"));
+		}
+	}
+
+	/**
+	 *
 	 * Handles menu command "Statusbar".
 	 * Toggles the statusbar visibility.
 	 *
@@ -2948,7 +2995,7 @@ public class TMUI extends JFrame {
 	public void doMinusRowCommand() {
 		TMView view = getSelectedView();
 		if (view != null) {
-			view.setRelativeOffset(-view.getEditorCanvas().getRowIncrement());
+			view.setRelativeOffset(-view.getEditorCanvas().getScrollRowIncrement());
 		}
 	}
 
@@ -2983,7 +3030,7 @@ public class TMUI extends JFrame {
 	public void doPlusRowCommand() {
 		TMView view = getSelectedView();
 		if (view != null) {
-			view.setRelativeOffset(view.getEditorCanvas().getRowIncrement());
+			view.setRelativeOffset(view.getEditorCanvas().getScrollRowIncrement());
 		}
 	}
 
@@ -3798,6 +3845,8 @@ public class TMUI extends JFrame {
 		TMView view = new TMView(this, img, tc);
 		view.setMode(mode);
 		view.setPalette(pal);
+		// Pixel View is enabled by default for every new view.
+		view.setPixelView(true);
 		return view;
 	}
 
@@ -4233,7 +4282,14 @@ public class TMUI extends JFrame {
 		blockGridMenuItem.setSelected(ec.isBlockGridVisible());
 		tileGridMenuItem.setSelected(ec.isTileGridVisible());
 		pixelGridMenuItem.setSelected(ec.isPixelGridVisible());
+		pixelViewMenuItem.setSelected(view.isPixelView());
 		rowInterleaveBlocksMenuItem.setSelected(ec.getRowInterleaveBlocks());
+		boolean tileMode = !view.isPixelView();
+		_1DimensionalMenuItem.setEnabled(tileMode);
+		_2DimensionalMenuItem.setEnabled(tileMode);
+		tileGridMenuItem.setEnabled(tileMode);
+		blockGridMenuItem.setEnabled(tileMode);
+		refreshRowButtonTooltips(view);
 
 		refreshModeSelection(view);
 		refreshTileCodecSelection(view);

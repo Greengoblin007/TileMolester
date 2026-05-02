@@ -30,8 +30,9 @@ Custom_Block_Size =
 Row_Interleave_Blocks = 
 Block_Grid = 
 Tile_Grid = 
-Pixel_Grid = 
-Dark_Mode = 
+Pixel_Grid =
+Pixel_View =
+Dark_Mode =
 
 # Edit Menu
 
@@ -112,8 +113,10 @@ Mover =
 
 Page_Back = 
 Page_Forward = 
-Row_Back = 
-Row_Forward = 
+Row_Back =
+Row_Forward =
+Pixel_Back =
+Pixel_Forward = 
 Tile_Back = 
 Tile_Forward = 
 Byte_Back = 

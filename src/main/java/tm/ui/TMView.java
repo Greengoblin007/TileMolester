@@ -73,6 +73,11 @@ public class TMView extends JInternalFrame {
 
 	private boolean sizeBlockToCanvas = true;
 
+	private boolean pixelView = false;
+	private int savedMode = TileCodec.MODE_1D;
+	private boolean savedTileGrid = false;
+	private boolean savedBlockGrid = false;
+
 	@Override
 	public void setFrameIcon(Icon icon)  {
         Icon oldIcon = frameIcon;
@@ -165,7 +170,7 @@ public class TMView extends JInternalFrame {
 
 		slider.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				int rowSize = editorCanvas.getRowIncrement();
+				int rowSize = editorCanvas.getScrollRowIncrement();
 				if (rowSize > 0) {
 					int offset = editorCanvas.getOffset();
 					int relOfs = offset % rowSize;
@@ -373,13 +378,15 @@ public class TMView extends JInternalFrame {
 	private void updateSlider() {
 		slider.setMinimum(minOffset); // not here
 		// set slider tick spacings and maximum
-		slider.setMinorTickSpacing(editorCanvas.getRowIncrement());
+		slider.setMinorTickSpacing(editorCanvas.getScrollRowIncrement());
 		slider.setMajorTickSpacing(editorCanvas.getPageIncrement());
-		maxOffset = getFileImage().getSize();
-		if (maxOffset > editorCanvas.getPageIncrement()) {
-			maxOffset -= editorCanvas.getPageIncrement();
-		} else {
-			maxOffset = 0;
+		// Allow scrolling all the way to the last byte; the canvas now
+		// zero-pads any tile that extends past the end of the file, so
+		// we don't need to subtract a full page (which previously made
+		// small files impossible to navigate).
+		maxOffset = getFileImage().getSize() - 1;
+		if (maxOffset < minOffset) {
+			maxOffset = minOffset;
 		}
 		if (slider.getValue() > maxOffset) {
 			slider.setValue(maxOffset);
@@ -996,6 +1003,47 @@ public class TMView extends JInternalFrame {
 
 	public boolean getSizeBlockToCanvas() {
 		return sizeBlockToCanvas;
+	}
+
+	/**
+	 *
+	 * Toggles pixel (raster) view. When enabled, the data is rendered as a
+	 * continuous bitmap (forces 2D tile arrangement and hides tile/block grids);
+	 * when disabled, the previous tile mode and grid visibility are restored.
+	 *
+	 **/
+
+	public void setPixelView(boolean pixelView) {
+		if (pixelView == this.pixelView) return;
+		this.pixelView = pixelView;
+		if (pixelView) {
+			savedMode = editorCanvas.getMode();
+			savedTileGrid = editorCanvas.isTileGridVisible();
+			savedBlockGrid = editorCanvas.isBlockGridVisible();
+			editorCanvas.setPixelView(true);
+			editorCanvas.setMode(TileCodec.MODE_2D);
+			editorCanvas.setTileGridVisible(false);
+			editorCanvas.setBlockGridVisible(false);
+		} else {
+			editorCanvas.setPixelView(false);
+			editorCanvas.setMode(savedMode);
+			editorCanvas.setTileGridVisible(savedTileGrid);
+			editorCanvas.setBlockGridVisible(savedBlockGrid);
+		}
+		editorCanvas.unpackPixels();
+		updateSlider();
+		editorCanvas.repaint();
+		ui.refreshStatusBar();
+	}
+
+	/**
+	 *
+	 * Returns whether pixel (raster) view is enabled.
+	 *
+	 **/
+
+	public boolean isPixelView() {
+		return pixelView;
 	}
 
 }

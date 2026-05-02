@@ -44,6 +44,11 @@ public class TMTileCanvas extends TMPixelCanvas {
     protected int palIndex=0;
 
     private boolean showTileGrid=false;
+    protected boolean pixelView=false;
+
+    // Reusable buffer used to safely decode tiles whose data extends past the
+    // end of the file (zero-padded read for small files / final partial tile).
+    private byte[] readPadBuf = null;
 
 /**
 *
@@ -174,7 +179,7 @@ public class TMTileCanvas extends TMPixelCanvas {
         int bitsOfs, pos;
         // encode single atomic tile
         bitsOfs = getTileBitsOffset(x, y);
-        if (bitsOfs >= 0) {
+        if (canEncodeTileAt(bitsOfs)) {
             // copy pixels
             pixOfs = (y * 8 * canvasWidth) + (x * 8);
             pos = 0;
@@ -244,7 +249,7 @@ public class TMTileCanvas extends TMPixelCanvas {
             for (int j=0; j<cols; j++) {
                 bitsOfs = getTileBitsOffset(j, i);
                 if (bitsOfs >= 0) {
-                    decodedTile = codec.decode(bits, bitsOfs, stride);
+                    decodedTile = decodeTileSafe(bitsOfs, stride);
                     // copy pixels
                     tileOfs = pixOfs;
                     pos = 0;
@@ -302,7 +307,7 @@ public class TMTileCanvas extends TMPixelCanvas {
         for (int i=0; i<rows; i++) {
             for (int j=0; j<cols; j++) {
                 bitsOfs = getTileBitsOffset(j, i);
-                if (bitsOfs >= 0) {
+                if (canEncodeTileAt(bitsOfs)) {
                     // copy pixels
                     tileOfs = pixOfs;
                     pos = 0;
@@ -327,7 +332,7 @@ public class TMTileCanvas extends TMPixelCanvas {
                     codec.encode(pixdata, bits, bitsOfs, stride);
                 }
                 else {
-                    // not valid tile, do nothing
+                    // not enough room to write a full tile here, skip
                 }
                 pixOfs += 8;    // next tile column
             }
@@ -399,6 +404,28 @@ public class TMTileCanvas extends TMPixelCanvas {
 
 /**
 *
+* Enables/disables pixel (raster) view mode.
+* When enabled, the slider/scroll commands advance one pixel-row at a time
+* instead of one tile-row (8 pixel-rows).
+*
+**/
+
+    public void setPixelView(boolean pixelView) {
+        this.pixelView = pixelView;
+    }
+
+/**
+*
+* Returns whether pixel (raster) view mode is enabled.
+*
+**/
+
+    public boolean isPixelView() {
+        return pixelView;
+    }
+
+/**
+*
 * Gets the starting offset of the data for the tile at position (x,y)
 * in the grid.
 *
@@ -407,16 +434,64 @@ public class TMTileCanvas extends TMPixelCanvas {
     protected int getTileBitsOffset(int x, int y) {
         int relOfs = (y * getRowSize()) + (x * getTileIncrement());
         int absOfs = relOfs + offset;
-        // range check
-        int limit = 0;
+        // permissive: any offset that points into the buffer is valid for reads;
+        // bytes past the end are treated as zero. Writes must additionally check
+        // canEncodeTileAt() to avoid going past the end of the file.
+        if (absOfs >= 0 && absOfs < bits.length) return absOfs;
+        return -1;
+    }
+
+/**
+*
+* Returns true if a complete tile can be encoded at the given absolute offset
+* without writing past the end of the buffer.
+*
+**/
+
+    protected boolean canEncodeTileAt(int absOfs) {
+        if (absOfs < 0 || codec == null) return false;
+        int limit;
         if (mode == TileCodec.MODE_1D) {
             limit = bits.length - codec.getTileSize();
-        }
-        else {
+        } else {
             limit = bits.length - getRowIncrement();
         }
-        if (absOfs <= limit) return absOfs;
-        return -1;
+        return absOfs <= limit;
+    }
+
+/**
+*
+* Conservative upper bound on bytes any codec might read while decoding one
+* tile, given the current stride. Used to size the zero-padded read buffer.
+*
+**/
+
+    private int getTileReadSpan(int stride) {
+        return (7 * stride + 9) * codec.getBytesPerRow();
+    }
+
+/**
+*
+* Decodes one tile at the given offset, transparently zero-padding if the
+* tile extends past the end of the buffer.
+*
+**/
+
+    protected int[] decodeTileSafe(int bitsOfs, int stride) {
+        int span = getTileReadSpan(stride);
+        if (bitsOfs + span <= bits.length) {
+            return codec.decode(bits, bitsOfs, stride);
+        }
+        if (readPadBuf == null || readPadBuf.length < span) {
+            readPadBuf = new byte[span];
+        }
+        java.util.Arrays.fill(readPadBuf, 0, span, (byte) 0);
+        int avail = Math.max(0, bits.length - bitsOfs);
+        int copyLen = Math.min(avail, span);
+        if (copyLen > 0) {
+            System.arraycopy(bits, bitsOfs, readPadBuf, 0, copyLen);
+        }
+        return codec.decode(readPadBuf, 0, stride);
     }
 
 /**
@@ -463,6 +538,21 @@ public class TMTileCanvas extends TMPixelCanvas {
 
     public int getRowIncrement() {
         return codec.getTileSize() * cols;
+    }
+
+/**
+*
+* Gets the byte increment used by the slider and Up/Down scroll commands.
+* In pixel view, this is one pixel-row (cols * bytesPerRow bytes); in
+* tile view, it is one tile-row (cols * tileSize bytes), same as getRowIncrement().
+*
+**/
+
+    public int getScrollRowIncrement() {
+        if (pixelView && codec != null) {
+            return codec.getBytesPerRow() * cols;
+        }
+        return getRowIncrement();
     }
 
 /**

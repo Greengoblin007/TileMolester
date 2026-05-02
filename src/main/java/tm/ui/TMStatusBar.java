@@ -166,6 +166,10 @@ public class TMStatusBar extends JPanel {
             modeLabel.setText(" 2-Dimensional "); // i18n
     }
 
+    public void setMode(String label) {
+        modeLabel.setText(" "+label+" ");
+    }
+
 /**
 *
 * Sets the text that indicates how many tiles are shown.
@@ -174,6 +178,16 @@ public class TMStatusBar extends JPanel {
 
     public void setTiles(int w, int h) {
         tilesLabel.setText(" "+w+"x"+h+" tiles ");  // i18n
+    }
+
+/**
+*
+* Sets the text that indicates how many pixels are shown.
+*
+**/
+
+    public void setPixels(int w, int h) {
+        tilesLabel.setText(" "+w+"x"+h+" pixels ");  // i18n
     }
 
 /**
@@ -192,6 +206,9 @@ public class TMStatusBar extends JPanel {
         else if (ec.isDrawingLine()) {
             setSelectionCoords(ec.getLineX1(), ec.getLineY1(), ec.getLineX2(), ec.getLineY2());
         }
+        else if (view.isPixelView()) {
+            setCoords(ec.getCurrentPixelX(), ec.getCurrentPixelY());
+        }
         else {
             setCoords(ec.getCurrentCol(), ec.getCurrentRow());
         }
@@ -202,8 +219,13 @@ public class TMStatusBar extends JPanel {
             setCodec("");
         }
         setPalOffset(view.getPalette().getOffset());
-        setMode(view.getMode());
-        setTiles(view.getCols(), view.getRows());
+        if (view.isPixelView()) {
+            setMode("Pixel View");
+            setPixels(view.getCols() * 8, view.getRows() * 8);
+        } else {
+            setMode(view.getMode());
+            setTiles(view.getCols(), view.getRows());
+        }
     }
 
 /**

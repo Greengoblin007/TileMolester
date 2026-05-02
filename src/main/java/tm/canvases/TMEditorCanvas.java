@@ -58,6 +58,7 @@ public class TMEditorCanvas extends TMTileCanvas implements MouseInputListener {
     private int colorDraw;
     private int filledColor;
     private int currentCol=0, currentRow=0;
+    private int currentPixelX=0, currentPixelY=0;
 
     private TMUI ui;
     private TMView view;
@@ -404,6 +405,8 @@ public class TMEditorCanvas extends TMTileCanvas implements MouseInputListener {
         // update status bar coords
         currentCol = e.getX() / getScaledTileDim();
         currentRow = e.getY() / getScaledTileDim();
+        currentPixelX = (int)(e.getX() / scale);
+        currentPixelY = (int)(e.getY() / scale);
         ui.refreshStatusBar();
     }
 
@@ -490,7 +493,29 @@ public class TMEditorCanvas extends TMTileCanvas implements MouseInputListener {
         // update status bar coords
         currentCol = e.getX() / getScaledTileDim();
         currentRow = e.getY() / getScaledTileDim();
+        currentPixelX = (int)(e.getX() / scale);
+        currentPixelY = (int)(e.getY() / scale);
         ui.refreshStatusBar();
+    }
+
+/**
+*
+* Gets the current pixel x.
+*
+**/
+
+    public int getCurrentPixelX() {
+        return currentPixelX;
+    }
+
+/**
+*
+* Gets the current pixel y.
+*
+**/
+
+    public int getCurrentPixelY() {
+        return currentPixelY;
     }
 
 /**
@@ -1469,15 +1494,9 @@ public ReversibleTileModifyAction encodeSelection()
         }
 
         int absOfs = relOfs + offset;
-        // range check
-        int limit = 0;
-        if (mode == TileCodec.MODE_1D) {
-            limit = bits.length - codec.getTileSize();
-        }
-        else {
-            limit = bits.length - getRowIncrement();
-        }
-        if (absOfs <= limit) return absOfs;
+        // permissive: any in-buffer offset is OK for reads (zero-padded if the
+        // tile extends past the file). Writes still gate on canEncodeTileAt().
+        if (absOfs >= 0 && absOfs < bits.length) return absOfs;
         return -1;
     }
 
