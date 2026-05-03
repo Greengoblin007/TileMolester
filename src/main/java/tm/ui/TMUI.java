@@ -94,6 +94,7 @@ public class TMUI extends JFrame {
 	private TMApprovedFileOpenChooser bitmapOpenChooser = new TMApprovedFileOpenChooser();
 	private TMApprovedFileSaveChooser bitmapSaveChooser = new TMApprovedFileSaveChooser();
 	private TMApprovedFileOpenChooser paletteOpenChooser = new TMApprovedFileOpenChooser();
+	private TMApprovedFileSaveChooser paletteSaveChooser = new TMApprovedFileSaveChooser();
 
 	private TMBitmapFilters bmf = new TMBitmapFilters();
 	private TMFileFilter allFilter = new AllFilter();
@@ -268,11 +269,10 @@ public class TMUI extends JFrame {
 	private JMenu importPaletteMenu = new JMenu("Import From");
 	private JMenuItem importInternalPaletteMenuItem = new JMenuItem("This File...");
 	private JMenuItem importExternalPaletteMenuItem = new JMenuItem("Another File...");
+	private JMenuItem exportPaletteMenuItem = new JMenuItem("Export As...");
 	private JMenuItem addToPalettesMenuItem = new JMenuItem("Add To Palettes...");
 	private JMenuItem organizePalettesMenuItem = new JMenuItem("Organize Palettes...");
 	// private JMenuItem savePalettesMenuItem = new JMenuItem("Save Palettes");
-	// private JMenuItem exportPaletteMenuItem = new JMenuItem("Export..."); // tpl,
-	// c, asm, java?
 	// Window menu
 	private JMenu windowMenu = new JMenu("Window");
 	private JMenuItem newWindowMenuItem = new JMenuItem("New Window");
@@ -424,6 +424,7 @@ public class TMUI extends JFrame {
 		importPaletteMenu.setText(xlate("Import_From"));
 		importInternalPaletteMenuItem.setText(xlate("This_File"));
 		importExternalPaletteMenuItem.setText(xlate("Another_File"));
+		exportPaletteMenuItem.setText(xlate("Export_As"));
 		addToPalettesMenuItem.setText(xlate("Add_To_Palettes"));
 		organizePalettesMenuItem.setText(xlate("Organize_Palettes"));
 		// Window menu
@@ -447,6 +448,7 @@ public class TMUI extends JFrame {
 		bitmapOpenChooser.setDialogTitle(xlate("Paste_From_Dialog_Title"));
 		bitmapSaveChooser.setDialogTitle(xlate("Copy_To_Dialog_Title"));
 		paletteOpenChooser.setDialogTitle(xlate("Open_Palette_Dialog_Title"));
+		paletteSaveChooser.setDialogTitle(xlate("Save_Palette_Dialog_Title"));
 
 		///////// Read specs
 		try {
@@ -555,6 +557,7 @@ public class TMUI extends JFrame {
 		initTileCodecUIStuff();
 		buildColorCodecsMenu();
 		initPaletteOpenChooser();
+		initPaletteSaveChooser();
 
 		// Set up file save chooser.
 		fileSaveChooser.setAcceptAllFileFilterUsed(false);
@@ -1747,6 +1750,15 @@ public class TMUI extends JFrame {
 				});
 		importPaletteMenu.add(importExternalPaletteMenuItem);
 		paletteMenu.add(importPaletteMenu);
+		// Export As...
+		exportPaletteMenuItem.setMnemonic(KeyEvent.VK_E);
+		exportPaletteMenuItem.addActionListener(
+				new ActionListener() {
+					public void actionPerformed(ActionEvent e) {
+						doExportPaletteCommand();
+					}
+				});
+		paletteMenu.add(exportPaletteMenuItem);
 		//
 		paletteMenu.addSeparator();
 		// Add To Palettes...
@@ -3342,6 +3354,62 @@ public class TMUI extends JFrame {
 
 	/**
 	 *
+	 * Handles the menu command "Export Palette As...".
+	 * Writes the current palette to a .pal (raw RGB888) or .act
+	 * (Adobe Color Table) file, depending on the chosen file filter.
+	 *
+	 **/
+
+	public void doExportPaletteCommand() {
+		TMView view = getSelectedView();
+		if (view == null) return;
+		TMPalette palette = view.getPalette();
+		if (palette == null) return;
+
+		if (new File(this.lastPath).exists()) {
+			paletteSaveChooser.setCurrentDirectory(new File(this.lastPath));
+		} else {
+			paletteSaveChooser.setCurrentDirectory(new File("."));
+		}
+
+		int retVal = paletteSaveChooser.showSaveDialog(this);
+		if (retVal != JFileChooser.APPROVE_OPTION) return;
+
+		File file = paletteSaveChooser.getSelectedFile();
+		String ext = TMFileFilter.getExtension(file);
+		boolean isAct = ext.equals("act");
+
+		int paletteSize = palette.getSize();
+		int colorCount = Math.min(paletteSize, 256);
+		int byteCount = isAct ? 768 : (colorCount * 3);
+		byte[] data = new byte[byteCount];
+
+		for (int i = 0; i < colorCount; i++) {
+			int rgb = palette.getEntryRGB(i);
+			data[i * 3]     = (byte) ((rgb >> 16) & 0xFF);
+			data[i * 3 + 1] = (byte) ((rgb >>  8) & 0xFF);
+			data[i * 3 + 2] = (byte) ( rgb        & 0xFF);
+		}
+
+		FileOutputStream fos = null;
+		try {
+			fos = new FileOutputStream(file);
+			fos.write(data);
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(this,
+					xlate("Palette_Write_Error") + "\n" + e.getMessage(),
+					"Tile Molester",
+					JOptionPane.ERROR_MESSAGE);
+			return;
+		} finally {
+			if (fos != null) {
+				try { fos.close(); } catch (Exception ignored) {}
+			}
+		}
+	}
+
+	/**
+	 *
 	 * Handles menu command "Palette Endianness".
 	 *
 	 **/
@@ -4006,6 +4074,22 @@ public class TMUI extends JFrame {
 		TMFileFilter supportedFilter = new TMFileFilter(extlist, xlate("All_Supported_Formats"));
 		paletteOpenChooser.addChoosableFileFilter(supportedFilter);
 		paletteOpenChooser.setFileFilter(supportedFilter);
+	}
+
+	/**
+	 *
+	 * Sets up the palette save chooser with PAL and ACT filters.
+	 *
+	 **/
+
+	private void initPaletteSaveChooser() {
+		paletteSaveChooser.setAcceptAllFileFilterUsed(false);
+		paletteSaveChooser.resetChoosableFileFilters();
+		TMFileFilter actFilter = new TMFileFilter("act", xlate("ACT_Filter_Description"));
+		TMFileFilter palFilter = new TMFileFilter("pal", xlate("PAL_Filter_Description"));
+		paletteSaveChooser.addChoosableFileFilter(actFilter);
+		paletteSaveChooser.addChoosableFileFilter(palFilter);
+		paletteSaveChooser.setFileFilter(actFilter);
 	}
 
 	/**
